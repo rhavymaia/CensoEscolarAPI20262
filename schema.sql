@@ -15,7 +15,8 @@ CREATE TABLE tb_instituicao_ensino (
     qt_mat_prof INTEGER NOT NULL,
     qt_mat_eja INTEGER NOT NULL,
     qt_mat_esp INTEGER NOT NULL,
-    created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    deleted_at TIMESTAMP NULL
 );
 
 CREATE TABLE IF NOT EXISTS tb_usuario (

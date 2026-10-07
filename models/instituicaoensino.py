@@ -1,7 +1,9 @@
 from marshmallow import Schema, fields, validate
+from datetime import datetime
 
 
-class InstituicaoEnsino():
+class InstituicaoEnsino:
+
     def __init__(
         self,
         no_entidade,
@@ -18,8 +20,11 @@ class InstituicaoEnsino():
         qt_mat_med,
         qt_mat_prof,
         qt_mat_eja,
-        qt_mat_esp
+        qt_mat_esp,
+        id=None,
+        created=None
     ):
+        self.id = id
         self.no_entidade = no_entidade
         self.co_entidade = co_entidade
         self.no_uf = no_uf
@@ -35,9 +40,39 @@ class InstituicaoEnsino():
         self.qt_mat_prof = qt_mat_prof
         self.qt_mat_eja = qt_mat_eja
         self.qt_mat_esp = qt_mat_esp
+        if (created is not None):
+            created = datetime.fromisoformat(created)
+        self.created = created
 
-    def toDict(self):
-        return {"no_entidade": self.no_entidade, "co_entidade": self.co_entidade, "qt_mat_bas": self.qt_mat_bas}
+
+class InstituicaoEnsinoCompactoSchema(Schema):
+    no_entidade = fields.Str(
+        required=True,
+        validate=validate.Length(min=1, max=255)
+    )
+
+    co_entidade = fields.Str(
+        required=True,
+        validate=validate.Length(min=1)
+    )
+
+    co_uf = fields.Int(
+        required=True
+    )
+
+    co_municipio = fields.Int(
+        required=True
+    )
+
+    nu_ano_censo = fields.Int(
+        required=True,
+        validate=validate.Range(min=0)
+    )
+
+    qt_mat_bas = fields.Int(
+        required=True,
+        validate=validate.Range(min=0)
+    )
 
 
 class InstituicaoEnsinoSchema(Schema):

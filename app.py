@@ -1,12 +1,17 @@
-from flask import Flask, request, jsonify
+from flask import request, jsonify
+from sqlite3 import OperationalError
 from marshmallow import ValidationError
 
 
-from models.instituicaoensino import InstituicaoEnsino, InstituicaoEnsinoSchema
+from models.instituicaoensino import InstituicaoEnsino, InstituicaoEnsinoSchema, InstituicaoEnsinoCompactoSchema
+from helpers.application import app
 from helpers.file.json import read
 from helpers.database import get_connection
 
-InstituicaoEnsinoSchema = InstituicaoEnsinoSchema()
+instituicaoEnsinoSchema = InstituicaoEnsinoSchema()
+instituicoesEnsinoSchema = InstituicaoEnsinoSchema(many=True)
+
+instituicaoEnsinoCompactoSchema = InstituicaoEnsinoCompactoSchema(many=True)
 
 
 def listar():
@@ -19,9 +24,6 @@ def listar():
     return instituicoesEnsino
 
 
-app = Flask(__name__)
-
-
 @app.route("/")
 def index():
     return {"versao": "0.0.1"}, 200
@@ -31,103 +33,116 @@ def index():
 def health():
     return {"health": "ok"}, 200
 
+
+def row_to_instituicao(row):
+    return InstituicaoEnsino(
+        id=row[30],
+        no_entidade=row[1],
+        co_entidade=row[2],
+        no_uf=row[3],
+        sg_uf=row[4],
+        co_uf=row[5],
+        no_municipio=row[6],
+        co_municipio=row[7],
+        nu_ano_censo=row[8],
+        qt_mat_bas=row[9],
+        qt_mat_inf=row[10],
+        qt_mat_fund=row[11],
+        qt_mat_med=row[12],
+        qt_mat_prof=row[13],
+        qt_mat_eja=row[14],
+        qt_mat_esp=row[15],
+        created=row[16]
+    )
+
+
 # /instituicoesensino?co_inep=123456
-
-
 @app.get("/instituicoesensino")
-def getAllInstituicoes():
-    insituicoesEnsinoReponse = []
-    # Abrir a conexão com o banco de dados.
-    connection = get_connection()
-    cursor = connection.cursor()
-    # Executar as DML de consulta
-    cursor.execute(f'SELECT * FROM tb_instituicao_ensino')
-    dataset = cursor.fetchall()
-    for row in dataset:
-        id = row[0]
-        no_entidade = row[1]
-        co_entidade = row[2]
-        qt_mat_bas = row[9]
-        print(f'{id}, {no_entidade}, {co_entidade}, {qt_mat_bas}')
-        instituicaoEnsino = InstituicaoEnsino(
-            id, no_entidade, co_entidade, qt_mat_bas)
-        # Transformação dos dados
-        insituicoesEnsinoReponse.append(instituicaoEnsino.toDict())
+def get_all_instituicoes():
 
-    # Responder/retorna os dados ao cliente
-    return insituicoesEnsinoReponse, 200
+    connection = get_connection()
+    try:
+        cursor = connection.cursor()
+        cursor.execute("""
+            SELECT id, no_entidade, co_entidade, no_uf, sg_uf, co_uf, no_municipio, co_municipio, nu_ano_censo, qt_mat_bas, qt_mat_inf,
+                qt_mat_fund, qt_mat_med, qt_mat_prof, qt_mat_eja, qt_mat_esp, created
+            FROM tb_instituicao_ensino
+        """)
+        rows = cursor.fetchall()
+
+        instituicoes = [
+            row_to_instituicao(row)
+            for row in rows
+        ]
+
+        return instituicoes, 200
+
+    except OperationalError:
+        connection.rollback()
+        raise
 
 
 @app.get("/instituicoesensino/<int:id>")
-def getByIdInstituicoes(id):
-    insituicaoEnsinoReponse = None
-    # Abrir a conexão com o banco de dados.
-    connection = get_connection()
-    cursor = connection.cursor()
-    # Executar as DML de consulta
-    cursor.execute(f'SELECT * FROM tb_instituicao_ensino WHERE id = ?', (id,))
-    row = cursor.fetchone()
-    if row is not None:
-        id = row[0]
-        no_entidade = row[1]
-        co_entidade = row[2]
-        qt_mat_bas = row[9]
-        print(f'{id}, {no_entidade}, {co_entidade}, {qt_mat_bas}')
-        insituicaoEnsinoReponse = InstituicaoEnsino(
-            id, no_entidade, co_entidade, qt_mat_bas)
-    else:
-        return {'mensagem': 'Instituição de ensino não encontrada'}, 404
+def get_instituicao_by_id(id):
 
-        # Responder/retorna os dados ao cliente
-    return insituicaoEnsinoReponse.toDict(), 200
+    connection = get_connection()
+    try:
+        cursor = connection.cursor()
+        cursor.execute("""
+            SELECT id, no_entidade, co_entidade, no_uf, sg_uf, co_uf, no_municipio, co_municipio, nu_ano_censo, qt_mat_bas, qt_mat_inf, qt_mat_fund, qt_mat_med, qt_mat_prof, qt_mat_eja, qt_mat_esp, created
+            FROM tb_instituicao_ensino
+            WHERE id = ?
+        """, (id,))
+        row = cursor.fetchone()
+
+        if row is None:
+            return {
+                "mensagem": "Instituição de ensino não encontrada"
+            }, 404
+
+        instituicao = row_to_instituicao(row)
+
+        return jsonify(instituicaoEnsinoSchema.dump(instituicao)), 200
+    except OperationalError:
+        connection.rollback()
+        raise
 
 
 @app.post("/instituicoesensino")
-def postInstituicoes():
-    # Entrada do dado em Json.
-    # Validação.
+def post_instituicao():
+
     try:
         data = InstituicaoEnsinoSchema.load(request.get_json())
 
-        # Inserção do registro no banco de dados
-        no_entidade = data.get("no_entidade")
-        co_entidade = data.get("co_entidade")
-        no_uf = data.get("no_uf")
-        sg_uf = data.get("sg_uf")
-        co_uf = data.get("co_uf")
-        no_municipio = data.get("no_municipio")
-        co_municipio = data.get("co_municipio")
-        nu_ano_censo = data.get("nu_ano_censo")
-        qt_mat_bas = data.get("qt_mat_bas")
-        qt_mat_inf = data.get("qt_mat_inf")
-        qt_mat_fund = data.get("qt_mat_fund")
-        qt_mat_med = data.get("qt_mat_med")
-        qt_mat_prof = data.get("qt_mat_prof")
-        qt_mat_eja = data.get("qt_mat_eja")
-        qt_mat_esp = data.get("qt_mat_esp")
-
-        # Abrir a conexão com o banco de dados.
         connection = get_connection()
-        cursor = connection.cursor()
-        # Executar as DML de consulta
-        cursor.execute(f'INSERT INTO tb_instituicao_ensino (no_entidade, co_entidade, no_uf, sg_uf, co_uf, no_municipio, co_municipio, nu_ano_censo, qt_mat_bas, qt_mat_inf, qt_mat_fund, qt_mat_med, qt_mat_prof, qt_mat_eja, qt_mat_esp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, created',
-                       (no_entidade, co_entidade, no_uf, sg_uf, co_uf, no_municipio, co_municipio, nu_ano_censo, qt_mat_bas, qt_mat_inf, qt_mat_fund, qt_mat_med, qt_mat_prof, qt_mat_eja, qt_mat_esp))
 
-        id = cursor.lastrowid
+        cursor = connection.cursor()
+        cursor.execute("""
+            INSERT INTO tb_instituicao_ensino (no_entidade, co_entidade, no_uf, sg_uf, co_uf, no_municipio, co_municipio, nu_ano_censo, qt_mat_bas, qt_mat_inf, qt_mat_fund, qt_mat_med, qt_mat_prof, qt_mat_eja, qt_mat_esp)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING id, created
+        """, (
+            data["no_entidade"], data["co_entidade"], data["no_uf"], data["sg_uf"], data["co_uf"], data["no_municipio"], data["co_municipio"], data["nu_ano_censo"], data[
+                "qt_mat_bas"], data["qt_mat_inf"], data["qt_mat_fund"], data["qt_mat_med"], data["qt_mat_prof"], data["qt_mat_eja"], data["qt_mat_esp"]
+        ))
+
         resultset = cursor.fetchone()
         id = resultset[0]
         created = resultset[1]
 
         connection.commit()
-    except ValidationError as err:
-        return {
-            "erro": "Dados inválidos",
-            "campos": err.messages
-        }, 400
 
-    # Retorno.
-    # Dado de entrada com identificador.
-    return {"id": id, "created": created}, 201
+        instituicao = InstituicaoEnsino(**data, id=id, created=created)
+
+        return jsonify(instituicaoEnsinoSchema.dump(instituicao)), 201
+
+    except ValidationError as err:
+
+        return {"erro": "Dados inválidos", "campos": err.messages}, 400
+
+    except OperationalError:
+        connection.rollback()
+        raise
 
 
 @app.put("/instituicoesensino/<int:id>")
