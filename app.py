@@ -7,6 +7,7 @@ from models.instituicaoensino import InstituicaoEnsino, InstituicaoEnsinoSchema,
 from helpers.application import app
 from helpers.file.json import read
 from helpers.database import get_connection
+from helpers.logger import logger
 
 instituicaoEnsinoSchema = InstituicaoEnsinoSchema()
 instituicoesEnsinoSchema = InstituicaoEnsinoSchema(many=True)
@@ -36,7 +37,7 @@ def health():
 
 def row_to_instituicao(row):
     return InstituicaoEnsino(
-        id=row[30],
+        id=row[0],
         no_entidade=row[1],
         co_entidade=row[2],
         no_uf=row[3],
@@ -60,8 +61,10 @@ def row_to_instituicao(row):
 @app.get("/instituicoesensino")
 def get_all_instituicoes():
 
+    logger.info("Listando as Insituições de Ensino")
     connection = get_connection()
     try:
+        logger.info("Recuperando a conexão com o Banco de dados")
         cursor = connection.cursor()
         cursor.execute("""
             SELECT id, no_entidade, co_entidade, no_uf, sg_uf, co_uf, no_municipio, co_municipio, nu_ano_censo, qt_mat_bas, qt_mat_inf,
@@ -75,9 +78,11 @@ def get_all_instituicoes():
             for row in rows
         ]
 
-        return instituicoes, 200
+        logger.info("Finalizando o processamento da Listagem")
+        return jsonify(instituicoesEnsinoSchema.dump(instituicoes)), 200
 
     except OperationalError:
+        logger.error("Erro no processamento dos dados no Banco de Dados")
         connection.rollback()
         raise
 
