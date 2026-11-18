@@ -40,7 +40,7 @@ class InstituicaoEnsino:
         self.qt_mat_prof = qt_mat_prof
         self.qt_mat_eja = qt_mat_eja
         self.qt_mat_esp = qt_mat_esp
-        if (created is not None):
+        if isinstance(created, str):
             created = datetime.fromisoformat(created)
         self.created = created
 

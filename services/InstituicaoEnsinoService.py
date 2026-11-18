@@ -1,3 +1,5 @@
+import math
+
 from helpers.logger import logger
 
 from repositories.InstituicaoEnsinoRepository import InstituicaoEnsinoRepository
@@ -7,8 +9,17 @@ class InstituicaoEnsinoService():
     def __init__(self):
         self.instituicaoEnsinoRepository = InstituicaoEnsinoRepository()
 
-    def get_all(self):
-        return self.instituicaoEnsinoRepository.getInstituicoes()
+    def get_all(self, page=1, size=10):
+        offset = (page - 1) * size
+        itens = self.instituicaoEnsinoRepository.getInstituicoes(size, offset)
+        total = self.instituicaoEnsinoRepository.countInstituicoes()
+        return {
+            "itens": itens,
+            "page": page,
+            "size": size,
+            "total": total,
+            "total_pages": math.ceil(total / size) if total else 0
+        }
 
     def get_by_id(self, id):
         return self.instituicaoEnsinoRepository.getInstituicao(id)

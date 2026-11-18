@@ -1,14 +1,16 @@
 from flask import Blueprint, request, jsonify
-from sqlite3 import OperationalError
+from psycopg2 import Error as DatabaseError
 from marshmallow import ValidationError
 
 from models.instituicaoensino import InstituicaoEnsinoSchema, InstituicaoEnsinoCompactoSchema
+from models.paginacao import PaginacaoSchema
 from services.InstituicaoEnsinoService import InstituicaoEnsinoService
 from helpers.logger import logger
 
 instituicaoEnsinoSchema = InstituicaoEnsinoSchema()
 instituicoesEnsinoSchema = InstituicaoEnsinoSchema(many=True)
 instituicaoEnsinoCompactoSchema = InstituicaoEnsinoCompactoSchema(many=True)
+paginacaoSchema = PaginacaoSchema()
 
 
 instituicao_ensino_bp = Blueprint(
@@ -18,12 +20,17 @@ instituicao_ensino_bp = Blueprint(
 @instituicao_ensino_bp.get("/")
 def get_all_instituicoes():
     try:
-        logger.info("Listando as Insituições de Ensino")
+        paginacao = paginacaoSchema.load(request.args)
+
+        logger.info(f"Listando as Instituições de Ensino {paginacao}")
         service = InstituicaoEnsinoService()
-        instituicoesEnsino = service.get_all()
+        resultado = service.get_all(paginacao["page"], paginacao["size"])
+        resultado["itens"] = instituicoesEnsinoSchema.dump(resultado["itens"])
         logger.info("Finalizando o processamento da Listagem")
-        return jsonify(instituicoesEnsinoSchema.dump(instituicoesEnsino)), 200
-    except OperationalError:
+        return jsonify(resultado), 200
+    except ValidationError as err:
+        return {"erro": "Parâmetros de paginação inválidos", "campos": err.messages}, 400
+    except DatabaseError:
         return {
             "mensagem": "Problema ao estabelecer a conexão"
         }, 500
@@ -39,7 +46,7 @@ def get_instituicao_by_id(id):
                 "mensagem": "Instituição de ensino não encontrada"
             }, 404
         return jsonify(instituicaoEnsinoSchema.dump(instituicaoEnsino)), 200
-    except OperationalError:
+    except DatabaseError:
         return {
             "mensagem": "Problema ao estabelecer a conexão"
         }, 500
@@ -57,7 +64,7 @@ def post_instituicao():
     except ValidationError as err:
         return {"erro": "Dados inválidos", "campos": err.messages}, 400
 
-    except OperationalError:
+    except DatabaseError:
         return {
             "mensagem": "Problema ao estabelecer a conexão"
         }, 500
@@ -80,7 +87,7 @@ def put_instituicao(id):
     except ValidationError as err:
         return {"erro": "Dados inválidos", "campos": err.messages}, 400
 
-    except OperationalError:
+    except DatabaseError:
         return {
             "mensagem": "Problema ao estabelecer a conexão"
         }, 500
@@ -98,7 +105,7 @@ def delete_instituicao(id):
 
         return "", 204
 
-    except OperationalError:
+    except DatabaseError:
         return {
             "mensagem": "Problema ao estabelecer a conexão"
         }, 500
