@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from psycopg2 import Error as DatabaseError
 from marshmallow import ValidationError
+from flask_restful import Resource
 
 from models.instituicaoensino import InstituicaoEnsinoSchema, InstituicaoEnsinoCompactoSchema
 from models.paginacao import PaginacaoSchema
@@ -17,45 +18,47 @@ instituicao_ensino_bp = Blueprint(
     'instituicaoensino', __name__, url_prefix='/instituicoesensino')
 
 
-@instituicao_ensino_bp.get("/")
-def get_all_instituicoes():
-    try:
-        paginacao = paginacaoSchema.load(request.args)
+class InstituicoesController(Resource):
+    def get(self):
+        try:
+            logger.info("entrou no get do controlador")
+            paginacao = paginacaoSchema.load(request.args)
 
-        service = InstituicaoEnsinoService()
-        page = paginacao["page"]
-        logger.info(
-            f"Listando as Instituições de Ensino - página {page} com {per_page} registros")
+            page = paginacao["page"]
+            per_page = paginacao["per_page"]
+            logger.info(
+                f"Listando as Instituições de Ensino - página {page} com {per_page} registros")
 
-        per_page = paginacao["per_page"]
-        resultado = service.get_all(page, per_page)
-        resultado["data"] = instituicoesEnsinoSchema.dump(resultado["data"])
+            service = InstituicaoEnsinoService()
+            resultado = service.get_all(page, per_page)
+            resultado["data"] = instituicoesEnsinoSchema.dump(
+                resultado["data"])
 
-        logger.info("Finalizando o processamento da Listagem")
-        return jsonify(resultado), 200
+            logger.info("Finalizando o processamento da Listagem")
+            return jsonify(resultado), 200
 
-    except ValidationError as err:
-        return {"erro": "Parâmetros de paginação inválidos", "campos": err.messages}, 400
-    except DatabaseError:
-        return {
-            "mensagem": "Problema ao estabelecer a conexão"
-        }, 500
-
-
-@instituicao_ensino_bp.get("/<int:id>")
-def get_instituicao_by_id(id):
-    try:
-        service = InstituicaoEnsinoService()
-        instituicaoEnsino = service.get_by_id(id)
-        if instituicaoEnsino is None:
+        except ValidationError as err:
+            return {"erro": "Parâmetros de paginação inválidos", "campos": err.messages}, 400
+        except DatabaseError:
             return {
-                "mensagem": "Instituição de ensino não encontrada"
-            }, 404
-        return jsonify(instituicaoEnsinoSchema.dump(instituicaoEnsino)), 200
-    except DatabaseError:
-        return {
-            "mensagem": "Problema ao estabelecer a conexão"
-        }, 500
+                "mensagem": "Problema ao estabelecer a conexão"
+            }, 500
+
+
+class InstituicaoController(Resource):
+    def get(self, id):
+        try:
+            service = InstituicaoEnsinoService()
+            instituicaoEnsino = service.get_by_id(id)
+            if instituicaoEnsino is None:
+                return {
+                    "mensagem": "Instituição de ensino não encontrada"
+                }, 404
+            return jsonify(instituicaoEnsinoSchema.dump(instituicaoEnsino)), 200
+        except DatabaseError:
+            return {
+                "mensagem": "Problema ao estabelecer a conexão"
+            }, 500
 
 
 @instituicao_ensino_bp.post("/")

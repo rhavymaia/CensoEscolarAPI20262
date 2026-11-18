@@ -50,9 +50,10 @@ class InstituicaoEnsinoRepository():
         try:
             cursor = connection.cursor()
             cursor.execute("""
-                SELECT COUNT(*)
+                SELECT COUNT(id)
                 FROM tb_instituicao_ensino
                 WHERE deleted_at IS NULL
+                group by id
             """)
             return cursor.fetchone()[0]
         except DatabaseError:
