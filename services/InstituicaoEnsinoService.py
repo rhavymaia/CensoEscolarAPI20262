@@ -2,6 +2,7 @@ import math
 
 from helpers.logger import logger
 
+from models.paginacao import PAGE_DEFAULT, PER_PAGE_DEFAULT
 from repositories.InstituicaoEnsinoRepository import InstituicaoEnsinoRepository
 
 
@@ -9,16 +10,18 @@ class InstituicaoEnsinoService():
     def __init__(self):
         self.instituicaoEnsinoRepository = InstituicaoEnsinoRepository()
 
-    def get_all(self, page=1, size=10):
-        offset = (page - 1) * size
-        itens = self.instituicaoEnsinoRepository.getInstituicoes(size, offset)
+    def get_all(self, page=PAGE_DEFAULT, per_page=PER_PAGE_DEFAULT):
+        offset = (page - 1) * per_page
+        itens = self.instituicaoEnsinoRepository.getInstituicoes(per_page, offset)
         total = self.instituicaoEnsinoRepository.countInstituicoes()
         return {
-            "itens": itens,
-            "page": page,
-            "size": size,
-            "total": total,
-            "total_pages": math.ceil(total / size) if total else 0
+            "data": itens,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "total_pages": math.ceil(total / per_page) if total else 0
+            }
         }
 
     def get_by_id(self, id):

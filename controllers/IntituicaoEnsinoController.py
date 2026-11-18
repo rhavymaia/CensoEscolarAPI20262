@@ -22,12 +22,18 @@ def get_all_instituicoes():
     try:
         paginacao = paginacaoSchema.load(request.args)
 
-        logger.info(f"Listando as Instituições de Ensino {paginacao}")
         service = InstituicaoEnsinoService()
-        resultado = service.get_all(paginacao["page"], paginacao["size"])
-        resultado["itens"] = instituicoesEnsinoSchema.dump(resultado["itens"])
+        page = paginacao["page"]
+        logger.info(
+            f"Listando as Instituições de Ensino - página {page} com {per_page} registros")
+
+        per_page = paginacao["per_page"]
+        resultado = service.get_all(page, per_page)
+        resultado["data"] = instituicoesEnsinoSchema.dump(resultado["data"])
+
         logger.info("Finalizando o processamento da Listagem")
         return jsonify(resultado), 200
+
     except ValidationError as err:
         return {"erro": "Parâmetros de paginação inválidos", "campos": err.messages}, 400
     except DatabaseError:
