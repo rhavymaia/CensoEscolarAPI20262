@@ -1,14 +1,11 @@
-from flask import Blueprint
-
-index_bp = Blueprint(
-    'index', __name__)
+from flask_restful import Resource
 
 
-@index_bp.route("/")
-def index():
-    return {"versao": "0.0.1"}, 200
+class IndexResource(Resource):
+    def get(self):
+        return {"versao": "0.0.1"}, 200
 
 
-@index_bp.route("/health")
-def health():
-    return {"health": "ok"}, 200
+class HealthResource(Resource):
+    def get(self):
+        return {"health": "ok"}, 200
